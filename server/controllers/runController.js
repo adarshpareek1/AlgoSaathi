@@ -5,42 +5,41 @@ export const executeCode = async (q, r) => {
   const { language: l, source: c, stdin: i } = q.body;
   const u = q.user._id;
   
-  const m = { cpp: 54, c: 50, python: 71, java: 62, javascript: 93 };
-  const id = m[l];
+  const m = { 
+    cpp: { l: 'cpp17', v: '0' }, 
+    c: { l: 'c', v: '4' }, 
+    python: { l: 'python3', v: '3' }, 
+    java: { l: 'java', v: '4' }, 
+    javascript: { l: 'nodejs', v: '3' } 
+  };
+  
+  const cfg = m[l];
 
   try {
-    const p = 'https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true';
-    const o = {
-      headers: {
-        'x-rapidapi-key': process.env.JUDGE0_API_KEY,
-        'x-rapidapi-host': 'judge0-ce.p.rapidapi.com',
-        'Content-Type': 'application/json'
-      }
-    };
+    const d = await ax.post('https://api.jdoodle.com/v1/execute', {
+      clientId: process.env.JDOODLE_CLIENT_ID,
+      clientSecret: process.env.JDOODLE_CLIENT_SECRET,
+      script: c,
+      stdin: i || "",
+      language: cfg.l,
+      versionIndex: cfg.v
+    });
 
-    const d = await ax.post(p, {
-      language_id: id,
-      source_code: c,
-      stdin: i || ""
-    }, o);
-
-    const { stdout: so, stderr: se, compile_output: co } = d.data;
-    const err = se || co;
-    const out = so || err || "";
-    const isErr = !!err;
+    const { output: o, error: e } = d.data;
+    const isErr = !!e;
 
     await S.create({
       user: u,
       language: l,
       code: c,
       status: isErr ? 'Error' : 'Success',
-      output: out.substring(0, 500)
+      output: (o || "").substring(0, 500)
     });
 
     r.json({ 
-      output: so, 
-      error: err, 
-      code: 0 
+      output: o, 
+      error: e, 
+      code: isErr ? 1 : 0 
     });
 
   } catch (x) {
