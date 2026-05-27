@@ -8,25 +8,29 @@ import runRoutes from './routes/runRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
-const app = express();
+const a = express();
 
-app.use(cors()); 
-app.use(express.json()); 
+a.use(cors()); 
+a.use(express.json()); 
+
+mongoose.connection.on('connected', () => console.log('c_ok'));
+mongoose.connection.on('error', (e) => console.log('c_err', e));
+mongoose.connection.on('disconnected', () => console.log('c_dc'));
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.error("MongoDB Connection Error :", err));
+  .then(() => console.log("db_ok"))
+  .catch(e => console.error("db_f", e));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/run', runRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/users', userRoutes);
+a.use('/api/auth', authRoutes);
+a.use('/api/run', runRoutes);
+a.use('/api/ai', aiRoutes);
+a.use('/api/users', userRoutes);
 
-app.get('/', (req, res) => {
-  res.send('AlgoSaathi Server is Running');
+a.get('/', (q, r) => {
+  r.send('ok');
 });
 
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const p = process.env.PORT || 5000;
+a.listen(p, () => {
+  console.log(`p_${p}`);
 });
