@@ -16,14 +16,26 @@ export const executeCode = async (q, r) => {
   const cfg = m[l];
 
   try {
-    const d = await ax.post('https://api.jdoodle.com/v1/execute', {
-      clientId: process.env.JDOODLE_CLIENT_ID,
-      clientSecret: process.env.JDOODLE_CLIENT_SECRET,
-      script: c,
-      stdin: i || "",
-      language: cfg.l,
-      versionIndex: cfg.v
-    });
+    let d;
+    let retries = 3;
+    let attempt = 0;
+    while (attempt < retries) {
+      try {
+        d = await ax.post('https://api.jdoodle.com/v1/execute', {
+          clientId: process.env.JDOODLE_CLIENT_ID,
+          clientSecret: process.env.JDOODLE_CLIENT_SECRET,
+          script: c,
+          stdin: i || "",
+          language: cfg.l,
+          versionIndex: cfg.v
+        }, { timeout: 10000 }); // 10 seconds timeout
+        break;
+      } catch (err) {
+        attempt++;
+        if (attempt >= retries) throw err;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between retries
+      }
+    }
 
     const { output: o, error: e } = d.data;
     const isErr = !!e;
