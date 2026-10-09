@@ -30,7 +30,7 @@ a.get('/', (q, r) => {
   r.send('ok');
 });
 
-app.get("/db-ping", async (req, res)=>{
+a.get("/db-ping", async (req, res)=>{
   try{
     await mongoose.connection.db.command({ ping: 1 });
     return res.status(200).send("Database pinged successfully");
