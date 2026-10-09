@@ -30,6 +30,17 @@ a.get('/', (q, r) => {
   r.send('ok');
 });
 
+app.get("/db-ping", async (req, res)=>{
+  try{
+    await mongoose.connection.db.command({ ping: 1 });
+    return res.status(200).send("Database pinged successfully");
+  }
+  catch(err){
+    console.error(err);
+    return res.status(500).send("Some error occured");
+  }
+})
+
 const p = process.env.PORT || 5000;
 a.listen(p, () => {
   console.log(`p_${p}`);
