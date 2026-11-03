@@ -3,7 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { getProfileStats } from '../services/userService';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
-import { Mail, Calendar, Code2, Flame, Clock, CheckCircle, XCircle, Trophy, ArrowRight, ArrowLeft } from 'lucide-react';
+import ActivityHeatmap from '../components/profile/ActivityHeatmap';
+import DayActivityInspector from '../components/profile/DayActivityInspector';
+import { Mail, Calendar, Code2, Flame, Clock, CheckCircle2, XCircle, Trophy, ArrowRight, BarChart3, Percent } from 'lucide-react';
 import Button from '../components/ui/Button';
 
 const Profile = () => {
@@ -12,14 +14,19 @@ const Profile = () => {
   
   const [stats, setStats] = useState({ 
     totalSolved: 0, 
+    totalSubmissions: 0,
+    acceptanceRate: 0,
+    languageStats: [],
     currentStreak: 0,
     longestStreak: 0,
     bestStreakRange: 'N/A',
     recentActivity: [], 
     heatmapData: {},
+    heatmapMeta: {},
     joinedAt: null
   });
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,223 +42,223 @@ const Profile = () => {
     fetchData();
   }, []);
 
-  const generateHeatmapDays = () => {
-    const days = [];
-    const today = new Date();
-    // 52 weeks * 7 days = 364 days
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateString = date.toISOString().split('T')[0];
-      const count = stats.heatmapData?.[dateString] || 0;
-      
-      let colorClass = 'bg-slate-800';
-      if (count >= 1) colorClass = 'bg-green-900';
-      if (count >= 3) colorClass = 'bg-green-700';
-      if (count >= 6) colorClass = 'bg-green-500';
-
-      days.push({ date: dateString, count, colorClass, dateObj: date });
-    }
-    return days;
-  };
-
-  const heatmapDays = generateHeatmapDays();
-
-  const getMonthLabels = () => {
-    const months = [];
-    let currentMonth = -1;
-    
-    for (let i = 0; i < heatmapDays.length; i += 7) {
-      const date = heatmapDays[i].dateObj;
-      const month = date.getMonth();
-      
-      if (month !== currentMonth) {
-        const colIndex = Math.floor(i / 7);
-        const name = date.toLocaleString('default', { month: 'short', year: 'numeric' }); 
-        
-        months.push({ name, index: colIndex });
-        currentMonth = month;
-      }
-    }
-
-    const filteredMonths = [];
-    let lastIndex = -10; 
-
-    months.forEach((m) => {
-      if (m.index - lastIndex >= 3) {
-        filteredMonths.push(m);
-        lastIndex = m.index;
-      }
-    });
-
-    return filteredMonths;
-  };
-  
-  const monthLabels = getMonthLabels();
-
   const handleLoadCode = (code, language) => {
     navigate('/workspace', { state: { code, language } });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-slate-950 text-white selection:bg-emerald-500/30 selection:text-white">
       <Navbar isLoggedIn={true} />
 
-      <div className="max-w-5xl mx-auto px-6 pt-32 pb-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-28 pb-16">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row items-center gap-8 mb-12 border-b border-slate-800 pb-12">
+        {/* Header Profile Section */}
+        <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8 mb-10 border-b border-slate-800/80 pb-10">
           <div className="relative group">
-            <div className="w-32 h-32 rounded-full border-4 border-slate-800 overflow-hidden shadow-2xl">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl border-2 border-emerald-500/40 p-1 bg-slate-900 shadow-2xl shadow-emerald-500/10">
               <img 
                 src={user?.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user?.username}`} 
                 alt="Profile" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-xl"
               />
+            </div>
+            <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 p-1 rounded-lg border-2 border-slate-950 shadow">
+              <CheckCircle2 className="w-4 h-4 stroke-[3]" />
             </div>
           </div>
 
           <div className="text-center md:text-left flex-1">
-            <h1 className="text-3xl font-bold text-white mb-2">{user?.name || "User"}</h1>
-            <div className="flex flex-col md:flex-row gap-4 text-slate-400 text-sm justify-center md:justify-start">
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4" /> {user?.email}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2 justify-center md:justify-start">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{user?.name || user?.username || "Algo Programmer"}</h1>
+              <span className="text-xs font-mono uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold inline-block self-center">
+                Candidate
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 text-slate-400 text-xs sm:text-sm justify-center md:justify-start">
+              <div className="flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-slate-500" /> {user?.email}
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> 
-                Joined {stats.joinedAt ? new Date(stats.joinedAt).toLocaleDateString() : "recently"}
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-slate-500" /> 
+                Joined {stats.joinedAt ? new Date(stats.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "recently"}
               </div>
             </div>
           </div>
+
+          <Button 
+            variant="secondary"
+            onClick={() => navigate('/workspace')}
+            className="text-xs gap-2 hidden md:inline-flex"
+          >
+            Go to Workspace <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/10">
-              <Code2 className="w-6 h-6 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm font-medium">Problems Solved</p>
-              <p className="text-2xl font-bold text-white">{stats.totalSolved}</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-orange-500/10">
-              <Flame className="w-6 h-6 text-orange-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm font-medium">Current Streak</p>
-              <p className="text-2xl font-bold text-white">{stats.currentStreak} Days</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-yellow-500/10">
-              <Trophy className="w-6 h-6 text-yellow-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm font-medium">Best Streak</p>
-              <div className="flex flex-col">
-                 <span className="text-2xl font-bold text-white">{stats.longestStreak} Days</span>
-                 <span className="text-[10px] text-slate-500">{stats.bestStreakRange}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* HEATMAP SECTION */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 mb-8 overflow-hidden">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-green-500" /> Activity Map
-            </h2>
-            
-            {/* LEGEND: Less -> More Green */}
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>Less</span>
-              <div title="0 Submissions" className="w-3 h-3 bg-slate-800 rounded-sm border border-slate-700"></div>
-              <div title="1-2 Submissions" className="w-3 h-3 bg-green-900 rounded-sm border border-green-800"></div>
-              <div title="3-5 Submissions" className="w-3 h-3 bg-green-700 rounded-sm border border-green-600"></div>
-              <div title="6+ Submissions" className="w-3 h-3 bg-green-500 rounded-sm border border-green-400"></div>
-              <span>More</span>
-            </div>
-          </div>
+        {/* Primary Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8">
           
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[850px]"> 
-               
-               {/* Month Labels */}
-               <div className="relative h-6 mb-1 w-full">
-                 {monthLabels.map((m, i) => (
-                    <span 
-                      key={i} 
-                      className="absolute text-[10px] text-slate-500 font-medium whitespace-nowrap"
-                      style={{ left: `${m.index * 16}px` }} 
-                    >
-                      {m.name}
-                    </span>
-                 ))}
-               </div>
+          {/* 1. Solved & Acceptance */}
+          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <Code2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Solved</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-white">{stats.totalSolved}</p>
+                <span className="text-xs text-slate-500">/ {stats.totalSubmissions || stats.totalSolved}</span>
+              </div>
+              <p className="text-[11px] text-blue-400/80 font-medium mt-0.5">
+                {stats.acceptanceRate}% Acceptance
+              </p>
+            </div>
+          </div>
 
-               {/* Grid */}
-               <div className="flex gap-1">
-                  <div className="grid grid-rows-7 grid-flow-col gap-1">
-                    {heatmapDays.map((day, i) => (
-                      <div 
-                        key={i}
-                        title={`${day.date}: ${day.count} submissions`}
-                        className={`w-3 h-3 rounded-sm ${day.colorClass} hover:ring-1 ring-white/50 transition-all`}
-                      />
-                    ))}
-                  </div>
-               </div>
+          {/* 2. Current Streak */}
+          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-orange-500/10 border border-orange-500/20 text-orange-400">
+              <Flame className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Current Streak</p>
+              <p className="text-2xl font-bold text-white">{stats.currentStreak} Days</p>
+              <p className="text-[11px] text-orange-400/80 font-medium mt-0.5">
+                {stats.currentStreak > 0 ? "Keep the flame burning!" : "Solve today to start!"}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. Best Streak */}
+          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Best Streak</p>
+              <p className="text-2xl font-bold text-white">{stats.longestStreak} Days</p>
+              <p className="text-[10px] text-slate-500 truncate mt-0.5" title={stats.bestStreakRange}>
+                {stats.bestStreakRange}
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Total Active Days */}
+          <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Active Days</p>
+              <p className="text-2xl font-bold text-emerald-400">{stats.activeDaysCount || Object.keys(stats.heatmapData || {}).length}</p>
+              <p className="text-[11px] text-emerald-500/80 font-medium mt-0.5">
+                Past 12 Months
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-500" /> Recent History
-          </h2>
+        {/* Language Breakdown Bar */}
+        {stats.languageStats && stats.languageStats.length > 0 && (
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Languages Used:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {stats.languageStats.map((item) => (
+                <div
+                  key={item.language}
+                  className="px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs flex items-center gap-2"
+                >
+                  <span className="font-mono uppercase font-bold text-blue-400">{item.language}</span>
+                  <span className="text-slate-400 text-[11px]">{item.solved} solved ({item.count} runs)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Polished Week-Aligned Activity Heatmap */}
+        <ActivityHeatmap 
+          heatmapData={stats.heatmapData}
+          heatmapMeta={stats.heatmapMeta}
+          onSelectDate={setSelectedDate}
+          selectedDate={selectedDate}
+          totalSolved={stats.totalSolved}
+          currentStreak={stats.currentStreak}
+          longestStreak={stats.longestStreak}
+          bestStreakRange={stats.bestStreakRange}
+        />
+
+        {/* Interactive Day Inspector (Appears when day cell is clicked) */}
+        {selectedDate && (
+          <DayActivityInspector 
+            date={selectedDate}
+            onClose={() => setSelectedDate(null)}
+          />
+        )}
+
+        {/* Recent Submissions History */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-white">
+              <Clock className="w-5 h-5 text-blue-400" /> Recent Submissions
+            </h2>
+            <span className="text-xs text-slate-500">Latest 6 executions</span>
+          </div>
           
           {loading ? (
-             <p className="text-slate-500 animate-pulse">Loading history...</p>
-          ) : stats.recentActivity.length > 0 ? (
-            <div className="space-y-4">
+             <div className="space-y-3 animate-pulse">
+               {[1, 2, 3].map(n => (
+                 <div key={n} className="h-16 bg-slate-950/60 rounded-xl" />
+               ))}
+             </div>
+          ) : stats.recentActivity && stats.recentActivity.length > 0 ? (
+            <div className="space-y-3">
               {stats.recentActivity.map((activity) => (
-                <div key={activity._id} className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-slate-800/50 hover:border-slate-700 transition group">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${activity.status === 'Success' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                      {activity.status === 'Success' ? <CheckCircle className="w-5 h-5 text-green-500" /> : <XCircle className="w-5 h-5 text-red-500" />}
+                <div 
+                  key={activity._id} 
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-slate-800/60 hover:border-slate-700 transition group gap-3"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className={`p-2 rounded-lg ${activity.status === 'Success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                      {activity.status === 'Success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                     </div>
                     <div>
-                      <p className="font-medium text-white text-sm">
-                        Ran <span className="uppercase text-blue-400 font-bold">{activity.language}</span> Code
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white text-sm">
+                          Ran <span className="uppercase text-blue-400 font-bold font-mono">{activity.language}</span> Code
+                        </span>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${activity.status === 'Success' ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-500/20' : 'bg-red-900/30 text-red-400 border border-red-500/20'}`}>
+                          {activity.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(activity.createdAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                        {activity.output && ` • ${activity.output.substring(0, 40)}...`}
                       </p>
-                      <p className="text-xs text-slate-500">{new Date(activity.createdAt).toLocaleString()}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${activity.status === 'Success' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
-                      {activity.status}
-                    </span>
+                  <div className="flex items-center justify-end">
                     <button 
                       onClick={() => handleLoadCode(activity.code, activity.language)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg text-xs flex items-center gap-1"
+                      className="opacity-90 group-hover:opacity-100 transition-opacity bg-blue-600/90 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 font-medium shadow-xs shadow-blue-500/20"
                     >
-                      Solve Again <ArrowRight className="w-3 h-3" />
+                      Solve Again <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-slate-500">
-              <p>No recent submissions.</p>
+            <div className="text-center py-10 text-slate-500 text-sm">
+              No code runs recorded yet. Head over to the Workspace to run your first program!
             </div>
           )}
         </div>

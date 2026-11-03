@@ -1,18 +1,24 @@
 const API_URL = `${import.meta.env.VITE_API_URL}/run`;
 
 export const runCode = async (language, source, stdin = "") => {
-  const token = localStorage.getItem('token'); // Get Token
+  const token = localStorage.getItem('token');
 
   const response = await fetch(`${API_URL}/execute`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}` // Send Token
+      'Authorization': `Bearer ${token}`
     },
     body: JSON.stringify({ language, source, stdin }),
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Execution failed');
+  if (!response.ok) {
+    const error = new Error(data.message || 'Execution failed');
+    error.status = response.status;
+    error.retryAfter = data.retryAfter;
+    error.isRateLimited = response.status === 429;
+    throw error;
+  }
   return data;
 };
