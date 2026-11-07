@@ -45,14 +45,14 @@
 - **Smart Error Classification:** Distinguishes transient retryable errors (429, 5xx, ECONNABORTED) from permanent fast-fail errors (400, 401, 403). User code exit codes ≠ 0 are returned immediately without unnecessary retries.
 
 ### Per-User Rate Limiting
-- In-memory sliding-window rate limiter keyed on authenticated user ID (falls back to client IP).
+- In-memory sliding-window rate limiter keyed strictly on authenticated user ID (`user:<id>`).
 - Sets RFC-compliant response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`.
 - Configured tiers: Code Execution (20/min), AI Tutor (10/min), General API (60/min).
 - Sub-microsecond per-request overhead (~0.75μs).
 
 ### Test Coverage
 - **33 unit tests** (Jest) covering:
-  - Rate limiter: limit enforcement, 429 on exceed, per-user isolation, IP fallback, window reset, response body format.
+  - Rate limiter: limit enforcement, 429 on exceed, per-user isolation, rejection of unauthenticated requests, window reset, response body format.
   - Execution service: error classification for all HTTP status codes (400–504) and network error codes (ECONNABORTED, ETIMEDOUT, etc.), backoff delay bounds verification, dynamic timeout scaling per language.
 
 ---

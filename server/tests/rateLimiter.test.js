@@ -15,9 +15,12 @@ class MemoryRateLimiter {
 
   middleware() {
     return (req, res, next) => {
-      const key = req.user?._id
-        ? `user:${req.user._id.toString()}`
-        : `ip:${req.ip || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'}`;
+      const userId = req.user?._id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Not authorized, no user found' });
+      }
+
+      const key = `user:${userId.toString()}`;
 
       const now = Date.now();
       let record = this.store.get(key);
@@ -57,9 +60,8 @@ class MemoryRateLimiter {
 
 function mockReq(overrides = {}) {
   return {
-    ip: '127.0.0.1',
+    user: { _id: 'default_test_user' },
     headers: {},
-    socket: { remoteAddress: '127.0.0.1' },
     ...overrides
   };
 }
@@ -159,23 +161,15 @@ describe('MemoryRateLimiter', () => {
     expect(resB._headers['X-RateLimit-Remaining']).toBe(4);
   });
 
-  test('falls back to IP-based keying when user is not authenticated', () => {
-    const req1 = mockReq({ ip: '10.0.0.1' });
-    const req2 = mockReq({ ip: '10.0.0.2' });
-
-    // Exhaust IP 10.0.0.1
-    for (let i = 0; i < 5; i++) {
-      middleware(req1, mockRes(), () => {});
-    }
-    const res1 = mockRes();
-    middleware(req1, res1, () => {});
-    expect(res1._statusCode).toBe(429);
-
-    // IP 10.0.0.2 should still be allowed
-    const res2 = mockRes();
+  test('rejects unauthenticated requests when user is missing', () => {
+    const unauthReq = { headers: {} };
+    const res = mockRes();
     let nextCalled = false;
-    middleware(req2, res2, () => { nextCalled = true; });
-    expect(nextCalled).toBe(true);
+    middleware(unauthReq, res, () => { nextCalled = true; });
+
+    expect(nextCalled).toBe(false);
+    expect(res._statusCode).toBe(401);
+    expect(res._body.success).toBe(false);
   });
 
   test('resets count after the time window expires', () => {
@@ -190,7 +184,7 @@ describe('MemoryRateLimiter', () => {
     expect(resBlocked._statusCode).toBe(429);
 
     // Simulate time window expiry by manipulating the internal store
-    const key = 'ip:127.0.0.1';
+    const key = 'user:default_test_user';
     const record = limiter.store.get(key);
     record.resetTime = Date.now() - 1; // expired
 

@@ -7,7 +7,7 @@ import { runCodeEngine } from '../services/executionService.js';
  */
 export const executeCode = async (req, res) => {
   const { language, source, stdin = '' } = req.body;
-  const userId = req.user?._id;
+  const userId = req.user._id;
 
   if (!language || !source) {
     return res.status(400).json({
@@ -27,16 +27,13 @@ export const executeCode = async (req, res) => {
     const isError = executionResult.code !== 0 || !!executionResult.error;
 
     // Save record to database
-    let submissionRecord = null;
-    if (userId) {
-      submissionRecord = await Submission.create({
-        user: userId,
-        language,
-        code: source,
-        status: isError ? 'Error' : 'Success',
-        output: (executionResult.output || executionResult.error || '').substring(0, 2000)
-      });
-    }
+    const submissionRecord = await Submission.create({
+      user: userId,
+      language,
+      code: source,
+      status: isError ? 'Error' : 'Success',
+      output: (executionResult.output || executionResult.error || '').substring(0, 2000)
+    });
 
     return res.status(200).json({
       success: true,
@@ -46,22 +43,20 @@ export const executeCode = async (req, res) => {
       executionTimeMs: executionResult.executionTimeMs,
       engine: executionResult.engine,
       attempts: executionResult.attempts,
-      submissionId: submissionRecord?._id
+      submissionId: submissionRecord._id
     });
 
   } catch (error) {
     console.error('Code execution failed:', error.message);
 
-    // Save failed submission if user is authenticated
-    if (userId) {
-      await Submission.create({
-        user: userId,
-        language,
-        code: source,
-        status: 'Error',
-        output: `System execution error: ${error.message}`.substring(0, 500)
-      }).catch(err => console.error('Failed to save error submission:', err.message));
-    }
+    // Save failed submission to database
+    await Submission.create({
+      user: userId,
+      language,
+      code: source,
+      status: 'Error',
+      output: `System execution error: ${error.message}`.substring(0, 500)
+    }).catch(err => console.error('Failed to save error submission:', err.message));
 
     return res.status(500).json({
       success: false,

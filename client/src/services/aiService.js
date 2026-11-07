@@ -2,14 +2,16 @@ const API_URL = `${import.meta.env.VITE_API_URL}/ai`;
 
 export const askAi = async (code, language, context, problemStatement = "") => {
   const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (!token) {
+    throw new Error('Please log in to use AlgoSaathi AI Tutor.');
   }
 
   const response = await fetch(`${API_URL}/assist`, {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
     body: JSON.stringify({ code, language, context, problemStatement }),
   });
 

@@ -1,6 +1,6 @@
 /**
  * AlgoSaathi In-Memory Sliding Window Rate Limiter
- * Provides per-user rate limiting with fallback to client IP.
+ * Provides per-user rate limiting for authenticated routes.
  * Sets RFC compliant headers (X-RateLimit-*, Retry-After).
  */
 
@@ -29,10 +29,13 @@ class MemoryRateLimiter {
 
   middleware() {
     return (req, res, next) => {
-      // Prioritize authenticated user ID, fallback to IP address
-      const key = req.user?._id 
-        ? `user:${req.user._id.toString()}` 
-        : `ip:${req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown'}`;
+      // User is always authenticated because rateLimiter runs after protect
+      const userId = req.user?._id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'Not authorized, no user found' });
+      }
+
+      const key = `user:${userId.toString()}`;
 
       const now = Date.now();
       let record = this.store.get(key);

@@ -26,18 +26,3 @@ export const protect = async (req, res, next) => {
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
-
-export const optionalAuth = async (req, res, next) => {
-  const JWT_SECRET = process.env.JWT_SECRET;
-
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-password');
-    } catch {
-      // Optional, ignore invalid token
-    }
-  }
-  next();
-};
